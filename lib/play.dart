@@ -31,6 +31,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
   bool _isEmpty = false;
   bool _isDescriptionEmpty = false;
   bool _isUploading = false;
+  double _uploadProgress = 0.0;
 
   @override
   void initState() {
