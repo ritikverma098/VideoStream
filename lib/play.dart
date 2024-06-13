@@ -30,6 +30,8 @@ class _VideoPlayerState extends State<VideoPlayer> {
   bool isVideoPlay = false;
   bool _isEmpty = false;
   bool _isDescriptionEmpty = false;
+  bool _isUploading = false;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -118,14 +120,21 @@ class _VideoPlayerState extends State<VideoPlayer> {
               padding: const EdgeInsets.only(left: 14,right:14,top: 14),
               child: thumbNailPath != null ?getVideo(): const CircularProgressIndicator(),
             ),
+            if (_isUploading)
+              Padding(
+                padding: const EdgeInsets.all(14.0),
+                child: LinearProgressIndicator(value: _uploadProgress),
+              ),
             Padding(
               padding: const EdgeInsets.only(top: 20),
               child: Center(
                 child: SizedBox(
                   width:130,
-                    child: ElevatedButton(onPressed: (){
-                      uploadVideo();
-                    }, child:const Center(child: Text("Post")))),
+                    child: ElevatedButton(onPressed: _isUploading?
+                    null:uploadVideo,
+                        child:_isUploading
+                            ? const CircularProgressIndicator(color: Colors.white)
+                            : const Center(child: Text("Post")),)),
               ),
             )
           ],
@@ -134,21 +143,66 @@ class _VideoPlayerState extends State<VideoPlayer> {
     );
   }
 
-  void uploadVideo() async{
-    final auth  = FirebaseAuth.instance;
+  void uploadVideo() async {
+    final videoDatabase = FirebaseFirestore.instance.collection("video");
+    final auth = FirebaseAuth.instance;
     final user = auth.currentUser;
     final uuid = Uuid();
-    File videoFile = File("assets/video/video2.mp4");
+
+    // Copy video from assets to temp directory
+    final directory = await getTemporaryDirectory();
+    final byteData = await rootBundle.load("assets/video/video2.mp4");
+    File tempVideo = File("${directory.path}/temp_video.mp4")
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+
     setState(() {
-      _title.text.isEmpty?_isEmpty = true: _isEmpty = false;
-      _description.text.isEmpty? _isDescriptionEmpty = true :_isDescriptionEmpty =false;
+      _title.text.isEmpty ? _isEmpty = true : _isEmpty = false;
+      _description.text.isEmpty ? _isDescriptionEmpty = true : _isDescriptionEmpty = false;
+      _isUploading = true;
+      _uploadProgress = 0.0;
     });
-    if (_isEmpty & _isDescriptionEmpty){
+
+    if (_isEmpty || _isDescriptionEmpty) {
+      setState(() {
+        _isUploading = false;
+      });
       return;
     }
-    Reference firebaseStorageRef =FirebaseStorage.instance.ref().child("${user!.uid}/videUpload/${uuid.v1}_ss");
-    await firebaseStorageRef.putFile(videoFile);
 
+    try {
+      Reference firebaseStorageRef = FirebaseStorage.instance.ref().child("${user!.uid}/videUpload/${uuid.v1()}_ss");
+      UploadTask uploadTask = firebaseStorageRef.putFile(tempVideo);
+
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        setState(() {
+          _uploadProgress = snapshot.bytesTransferred.toDouble() / snapshot.totalBytes.toDouble();
+        });
+      });
+
+      await uploadTask;
+      String url = await firebaseStorageRef.getDownloadURL();
+      final docID = videoDatabase.doc(uuid.v1());
+      final data = <String, dynamic>{
+        "userID": user.uid,
+        "videoUrl": url,
+        "Location": "India",
+        "Time": DateTime.now(),
+      };
+      await docID.set(data);
+      setState(() {
+        _title.clear();
+        _description.clear();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Video uploaded successfully")));
+    } catch (e) {
+      log("Error uploading video: ${e.toString()}");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to upload video")));
+    } finally {
+      setState(() {
+        _isUploading = false;
+      });
+    }
   }
   Widget getVideo(){
     if (isVideoPlay){
