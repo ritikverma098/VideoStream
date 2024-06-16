@@ -53,15 +53,14 @@ class HomePage extends StatelessWidget {
             ],
           ),
           ElevatedButton(onPressed: (){
-            /*_getLocation().then((value) {
+            _getLocation().then((value) {
               lat = '${value.latitude}';
               long = '${value.longitude}';
             }).then((value)async {
               await availableCameras().then((value) =>
                   Navigator.push(context, MaterialPageRoute(
                       builder: (context)=> Record(camera: value,latitude: lat,longitude: long,))));
-            });*/
-            Navigator.push(context, MaterialPageRoute(builder: (context)=>const VideoPlayer()));
+            });
           }, child: const Text("Next Page"))
         ],
       )

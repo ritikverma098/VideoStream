@@ -1,26 +1,25 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flick_video_player/flick_video_player.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:video/widget/textBox.dart';
 import 'package:video_player/video_player.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import 'package:video_thumbnail/video_thumbnail.dart' as video_thumbnail;
 
 class VideoPlayer extends StatefulWidget {
-  const VideoPlayer({super.key});
+  final XFile videoFIle;
+  const VideoPlayer({super.key, required this.videoFIle});
 
   @override
   State<VideoPlayer> createState() => _VideoPlayerState();
 }
-
 class _VideoPlayerState extends State<VideoPlayer> {
   final videoCollection =FirebaseFirestore.instance.collection("video");
   late FlickManager flickManager;
@@ -37,8 +36,9 @@ class _VideoPlayerState extends State<VideoPlayer> {
   void initState() {
     // TODO: implement initState
     super.initState();
+    _initializeAppCheck();
     _generateThumbnail();
-    flickManager = FlickManager(videoPlayerController: VideoPlayerController.asset("assets/video/video2.mp4"));
+    flickManager = FlickManager(videoPlayerController: VideoPlayerController.file(File(widget.videoFIle.path)));
     flickManager.flickVideoManager?.videoPlayerController?.addListener(() {
       final position = flickManager.flickVideoManager?.videoPlayerController?.value.position;
       final duration = flickManager.flickVideoManager?.videoPlayerController?.value.duration;
@@ -49,20 +49,25 @@ class _VideoPlayerState extends State<VideoPlayer> {
       }
     });
   }
+  Future<void> _initializeAppCheck() async {
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: AndroidProvider.playIntegrity,
+      );
+    } catch (e) {
+      log("Error activating App Check: ${e.toString()}");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("App Check failed to activate. Please try again later.")),
+      );
+    }
+  }
 
   Future<void> _generateThumbnail() async {
     try {
-      final directory = await getTemporaryDirectory();
-      final filePath = directory.path;
-      final byteData = await rootBundle.load("assets/video/video2.mp4");
-      File tempVideo = File("${directory.path}/temp_video.mp4")
-        ..createSync(recursive: true)
-        ..writeAsBytesSync(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-      thumbNailPath = await VideoThumbnail.thumbnailFile(
-        video: tempVideo.path,
-        thumbnailPath: filePath,
-        imageFormat: ImageFormat.JPEG,
-        quality: 50,
+      thumbNailPath = await video_thumbnail.VideoThumbnail.thumbnailFile(
+          video: widget.videoFIle.path,
+          imageFormat: video_thumbnail.ImageFormat.JPEG,
+          quality: 50
       );
       setState(() {});
     } catch (e) {
@@ -73,7 +78,11 @@ class _VideoPlayerState extends State<VideoPlayer> {
   void dispose() {
     // TODO: implement dispose
     flickManager.dispose();
-
+    try {
+      File(widget.videoFIle.path).delete();
+    } catch (e) {
+      log("Error deleting video file: ${e.toString()}");
+    }
     super.dispose();
   }
   @override
@@ -86,7 +95,6 @@ class _VideoPlayerState extends State<VideoPlayer> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 10,),
             const Padding(
               padding: EdgeInsets.only(left: 20),
               child: Text("Title",style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),),
@@ -98,7 +106,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
                 errorText: _isEmpty?"Title Cannot be empty":null,
               ),
             ),
-            const SizedBox(height: 30,),
+            const SizedBox(height: 20,),
             const Padding(
               padding: EdgeInsets.only(left: 20),
               child: Text("Description",
@@ -112,7 +120,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
                 maxLine: 6,
               ),
             ),
-            const SizedBox(height: 40,),
+            const SizedBox(height: 30,),
             const Padding(
                 padding: EdgeInsets.only(left: 14),
                 child: Text("Video",style: TextStyle(fontSize: 20,fontWeight: FontWeight.bold),) ,
@@ -124,7 +132,13 @@ class _VideoPlayerState extends State<VideoPlayer> {
             if (_isUploading)
               Padding(
                 padding: const EdgeInsets.all(14.0),
-                child: LinearProgressIndicator(value: _uploadProgress),
+                child: Column(
+                  children: [
+                    LinearProgressIndicator(value: _uploadProgress),
+                    const SizedBox(height: 10),
+                    Text('${(_uploadProgress * 100).toStringAsFixed(2)}%'),
+                  ],
+                ),
               ),
             Padding(
               padding: const EdgeInsets.only(top: 20),
@@ -150,13 +164,6 @@ class _VideoPlayerState extends State<VideoPlayer> {
     final user = auth.currentUser;
     final uuid = Uuid();
 
-    // Copy video from assets to temp directory
-    final directory = await getTemporaryDirectory();
-    final byteData = await rootBundle.load("assets/video/video2.mp4");
-    File tempVideo = File("${directory.path}/temp_video.mp4")
-      ..createSync(recursive: true)
-      ..writeAsBytesSync(byteData.buffer.asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-
     setState(() {
       _title.text.isEmpty ? _isEmpty = true : _isEmpty = false;
       _description.text.isEmpty ? _isDescriptionEmpty = true : _isDescriptionEmpty = false;
@@ -173,7 +180,7 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
     try {
       Reference firebaseStorageRef = FirebaseStorage.instance.ref().child("${user!.uid}/videUpload/${uuid.v1()}_ss");
-      UploadTask uploadTask = firebaseStorageRef.putFile(tempVideo);
+      UploadTask uploadTask = firebaseStorageRef.putFile(File(widget.videoFIle.path));
 
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         setState(() {
@@ -203,6 +210,11 @@ class _VideoPlayerState extends State<VideoPlayer> {
       setState(() {
         _isUploading = false;
       });
+      try {
+        File(widget.videoFIle.path).delete();
+      } catch (e) {
+        log("Error deleting video file: ${e.toString()}");
+      }
     }
   }
   Widget getVideo(){

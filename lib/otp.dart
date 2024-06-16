@@ -72,6 +72,7 @@ class OtpVerify extends StatelessWidget {
                     final check  = await checks.get();
                     if(check.exists)
                       {
+                        if (!context.mounted) return;
                         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>  HomePage()));
                       }
                     else
@@ -85,6 +86,7 @@ class OtpVerify extends StatelessWidget {
 
                         };
                         checks.set(data);
+                        if (!context.mounted) return;
                         Navigator.pushReplacement(context, MaterialPageRoute(builder: (context)=>  HomePage()));
 
                       }

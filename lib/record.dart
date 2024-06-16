@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:developer';
-
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:video/play.dart';
 
 class Record extends StatefulWidget {
   final List<CameraDescription>? camera;
@@ -15,17 +17,23 @@ class Record extends StatefulWidget {
 }
 
 class _RecordState extends State<Record> {
+  late double lat = double.parse(widget.latitude!);
+  late double longi = double.parse(widget.longitude!);
+  late String location;
   late CameraController controller;
   XFile? videoFile;
   bool isNotRecording = true;
   bool isResume = true;
   bool flashOn = false;
   int selectedCamera = 0;
+  Timer? timer;
+  int remainingTime = 300;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-    log("Location is ${widget.longitude} and ${widget.latitude}");
+    log("Location is $lat and $longi");
+    getAddress(lat, longi);
     controller = CameraController(widget.camera![0], ResolutionPreset.max);
     controller.initialize().then((_){
       if(!mounted)
@@ -37,6 +45,36 @@ class _RecordState extends State<Record> {
       });
     });
   }
+  Future<void> getAddress(double latitude, double longitude) async{
+    List<Placemark> placeMark = await placemarkFromCoordinates(latitude, longitude);
+    Placemark place  = placeMark[0];
+    location = "${place.subLocality}, ${place.locality}, ${place.country}";
+  }
+  void startTimer() {
+    timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (remainingTime > 0) {
+          remainingTime--;
+        } else {
+          timer.cancel();
+          stopRecording();
+        }
+      });
+    });
+  }
+  void stopRecording() async {
+    isNotRecording = true;
+    flashOn = false;
+    controller.setFlashMode(FlashMode.off);
+    await controller.stopVideoRecording().then((file) {
+      videoFile = file;
+      Navigator.push(
+          context, MaterialPageRoute(builder:
+          (context)=>VideoPlayer(videoFIle: videoFile!,)));
+    });
+    setState(() {});
+  }
+
   @override
   void dispose() {
     controller.dispose();
@@ -55,9 +93,17 @@ class _RecordState extends State<Record> {
       }
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 50),
-          child: getFlash(),
+        Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 50,right: 30),
+              child: getFlash(),
+            ),
+            Text(
+              '${(remainingTime ~/ 60).toString().padLeft(2, '0')}:${(remainingTime % 60).toString().padLeft(2, '0')}',
+              style: const TextStyle(fontSize: 24, color: Colors.white),
+            ),
+          ],
         ),
         Center(
           child: SizedBox(
@@ -87,89 +133,79 @@ class _RecordState extends State<Record> {
         width: 30,
       );
     }
-    else{
-      if (flashOn){
-        return GestureDetector(
-          onTap: (){
-            flashOn = false;
-            controller.setFlashMode(FlashMode.off);
-            setState(() { });
-
-          },
-          child: const Icon(Icons.flash_on_outlined,color: Colors.orange,size: 30,),
-        );
-      }
-      else{
-        return GestureDetector(
-          onTap: (){
-            flashOn = true;
-            controller.setFlashMode(FlashMode.torch);
-            setState(() { });
-          },
-          child: const Icon(Icons.flash_off_outlined,color: Colors.orange,size: 30,) ,
-        );
-      }
+    else {
+      return GestureDetector(
+        onTap: () {
+          flashOn = !flashOn;
+          controller.setFlashMode(flashOn ? FlashMode.torch : FlashMode.off);
+          setState(() {});
+        },
+        child: Icon(
+          flashOn ? Icons.flash_on_outlined : Icons.flash_off_outlined,
+          color: Colors.orange,
+          size: 30,
+        ),
+      );
     }
   }
-  Widget getRecording()
-  {
-    if(isNotRecording)
-      {
-        return GestureDetector(
-          onTap: (){
-            isNotRecording = false;
-            setState(() {});
-          },
-          child: const FaIcon(FontAwesomeIcons.circleDot,color: Colors.redAccent,size:40,),
-        );
-      }
-    else if (!isNotRecording && isResume)
-      {
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            GestureDetector(
-              onTap: (){
-                isResume = false;
-                setState(() {});
-              },
-                child: const SizedBox(
-                  width: 30,
-                    child: FaIcon(FontAwesomeIcons.pause,color: Colors.redAccent,size:40))),
-            Padding(padding: const EdgeInsets.only(left: 40),
-            child: GestureDetector(
-              onTap: (){
-                isNotRecording = true;
-                flashOn = false;
-                controller.setFlashMode(FlashMode.off);
-                setState(() {});
-              },
-                child: const FaIcon(FontAwesomeIcons.solidSquare,color: Colors.redAccent,size:40)),)
-          ],
-
-        );
-      }
-    else{
+  Widget getRecording() {
+    if (isNotRecording) {
+      return GestureDetector(
+        onTap: () async {
+          isNotRecording = false;
+          await controller.startVideoRecording();
+          startTimer();
+          setState(() {});
+        },
+        child: const FaIcon(FontAwesomeIcons.circleDot, color: Colors.redAccent, size: 40),
+      );
+    } else if (!isNotRecording && isResume) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           GestureDetector(
-              onTap: (){
-                isResume = true;
-                setState(() {});
-              },
-              child: const FaIcon(FontAwesomeIcons.play,color: Colors.redAccent,size:40)),
-          Padding(padding: const EdgeInsets.only(left: 40),
-            child: GestureDetector(
-                onTap: (){
-                  isNotRecording = true;
-                  flashOn = false;
-                  controller.setFlashMode(FlashMode.off);
-                  setState(() {});
-                },
-                child: const FaIcon(FontAwesomeIcons.solidSquare,color: Colors.redAccent,size:40)),)
+            onTap: () async {
+              isResume = false;
+              await controller.pauseVideoRecording();
+              setState(() {});
+            },
+            child: const FaIcon(FontAwesomeIcons.pause, color: Colors.redAccent, size: 40),
+          ),
+          const SizedBox(width: 40),
+          GestureDetector(
+            onTap: () async {
+              stopRecording();
+            },
+            child: const FaIcon(FontAwesomeIcons.solidSquare, color: Colors.redAccent, size: 40),
+          ),
         ],
-
+      );
+    } else {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTap: () async {
+              isResume = true;
+              await controller.resumeVideoRecording();
+              setState(() {});
+            },
+            child: const FaIcon(FontAwesomeIcons.play, color: Colors.redAccent, size: 40),
+          ),
+          const SizedBox(width: 40),
+          GestureDetector(
+            onTap: () async {
+              isNotRecording = true;
+              flashOn = false;
+              await controller.stopVideoRecording().then((file) {
+                videoFile = file;
+              });
+              controller.setFlashMode(FlashMode.off);
+              setState(() {});
+            },
+            child: const FaIcon(FontAwesomeIcons.solidSquare, color: Colors.redAccent, size: 40),
+          ),
+        ],
       );
     }
   }
