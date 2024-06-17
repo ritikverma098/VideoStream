@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer';
+import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -28,20 +29,21 @@ class _RecordState extends State<Record> {
   int selectedCamera = 0;
   Timer? timer;
   int remainingTime = 300;
+  bool isCameraInitialized = false;
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     log("Location is $lat and $longi");
     getAddress(lat, longi);
-    controller = CameraController(widget.camera![0], ResolutionPreset.max);
+    controller = CameraController(widget.camera![0], ResolutionPreset.high);
     controller.initialize().then((_){
       if(!mounted)
         {
           return ;
         }
       setState(() {
-
+        isCameraInitialized = true;
       });
     });
   }
@@ -66,24 +68,38 @@ class _RecordState extends State<Record> {
     isNotRecording = true;
     flashOn = false;
     controller.setFlashMode(FlashMode.off);
-    await controller.stopVideoRecording().then((file) {
-      videoFile = file;
-      Navigator.push(
-          context, MaterialPageRoute(builder:
-          (context)=>VideoPlayer(videoFIle: videoFile!,)));
-    });
+    if (controller.value.isRecordingVideo) {
+      await controller.stopVideoRecording().then((file) {
+        videoFile = file;
+        timer?.cancel();
+        remainingTime = 300;// Cancel the timer
+          setState(() {
+          });
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VideoPlayer(videoFIle: videoFile!, location: location),
+            ),
+          );
+
+      });
+    }
     setState(() {});
   }
 
   @override
   void dispose() {
+    if(File(videoFile!.path).existsSync() && File(videoFile!.path).lengthSync() > 0){
+      File(videoFile!.path).delete();
+    }
+    timer?.cancel();
     controller.dispose();
     // TODO: implement dispose
     super.dispose();
   }
   @override
   Widget build(BuildContext context) {
-    if(!controller.value.isInitialized)
+    if(!isCameraInitialized)
       {
         return const SizedBox(
           child: Center(
@@ -94,14 +110,18 @@ class _RecordState extends State<Record> {
     return Column(
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Padding(
               padding: const EdgeInsets.only(top: 50,right: 30),
               child: getFlash(),
             ),
-            Text(
-              '${(remainingTime ~/ 60).toString().padLeft(2, '0')}:${(remainingTime % 60).toString().padLeft(2, '0')}',
-              style: const TextStyle(fontSize: 24, color: Colors.white),
+            Padding(
+              padding: const EdgeInsets.only(top: 50),
+              child: Text(
+                '${(remainingTime ~/ 60).toString().padLeft(2, '0')}:${(remainingTime % 60).toString().padLeft(2, '0')}',
+                style: const TextStyle(fontSize: 24, color: Colors.white),
+              ),
             ),
           ],
         ),

@@ -15,7 +15,8 @@ import 'package:video_thumbnail/video_thumbnail.dart' as video_thumbnail;
 
 class VideoPlayer extends StatefulWidget {
   final XFile videoFIle;
-  const VideoPlayer({super.key, required this.videoFIle});
+  final String location;
+  const VideoPlayer({super.key, required this.videoFIle, required this.location});
 
   @override
   State<VideoPlayer> createState() => _VideoPlayerState();
@@ -67,7 +68,9 @@ class _VideoPlayerState extends State<VideoPlayer> {
       thumbNailPath = await video_thumbnail.VideoThumbnail.thumbnailFile(
           video: widget.videoFIle.path,
           imageFormat: video_thumbnail.ImageFormat.JPEG,
-          quality: 50
+          quality: 50,
+        maxWidth:1280,
+        maxHeight: 720,
       );
       setState(() {});
     } catch (e) {
@@ -179,9 +182,10 @@ class _VideoPlayerState extends State<VideoPlayer> {
     }
 
     try {
-      Reference firebaseStorageRef = FirebaseStorage.instance.ref().child("${user!.uid}/videUpload/${uuid.v1()}_ss");
+      Reference firebaseStorageRef1 = FirebaseStorage.instance.ref().child("${user!.uid}/screenshotUpload/${uuid.v1()}_tu");
+      await firebaseStorageRef1.putFile(File(thumbNailPath!));
+      Reference firebaseStorageRef = FirebaseStorage.instance.ref().child("${user.uid}/videUpload/${uuid.v1()}_vu");
       UploadTask uploadTask = firebaseStorageRef.putFile(File(widget.videoFIle.path));
-
       uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
         setState(() {
           _uploadProgress = snapshot.bytesTransferred.toDouble() / snapshot.totalBytes.toDouble();
@@ -190,11 +194,15 @@ class _VideoPlayerState extends State<VideoPlayer> {
 
       await uploadTask;
       String url = await firebaseStorageRef.getDownloadURL();
+      String thumbNailUrl = await firebaseStorageRef1.getDownloadURL();
       final docID = videoDatabase.doc(uuid.v1());
       final data = <String, dynamic>{
         "userID": user.uid,
+        "title" : _title.text,
+        "Detail": _description.text,
         "videoUrl": url,
-        "Location": "India",
+        "thumbnailUrl":thumbNailUrl,
+        "Location": widget.location,
         "Time": DateTime.now(),
       };
       await docID.set(data);
@@ -203,6 +211,8 @@ class _VideoPlayerState extends State<VideoPlayer> {
         _description.clear();
       });
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Video uploaded successfully")));
+      int count = 0;
+      Navigator.of(context).popUntil((_) => count++ >= 2);
     } catch (e) {
       log("Error uploading video: ${e.toString()}");
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to upload video")));
@@ -229,7 +239,10 @@ class _VideoPlayerState extends State<VideoPlayer> {
       return Stack(
         alignment: AlignmentDirectional.center,
         children: [
-          Image.file(File(thumbNailPath!)),
+          SizedBox(
+            width: 1280,
+              height:360,
+              child: Image.file(File(thumbNailPath!))),
           Align(
               alignment: AlignmentDirectional.topCenter,
               child: GestureDetector(

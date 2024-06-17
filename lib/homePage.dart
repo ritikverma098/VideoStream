@@ -5,10 +5,15 @@ import 'package:video/record.dart';
 import 'package:video/play.dart';
 import 'package:video/widget/textBox.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
 
-  HomePage({super.key});
+  const HomePage({super.key});
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
   final TextEditingController _controller = TextEditingController();
 
   @override
