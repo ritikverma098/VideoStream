@@ -20,12 +20,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TextEditingController _controller = TextEditingController();
-  final userInfo = FirebaseAuth.instance.currentUser;
+  final user = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance.collection("users");
-  String? userName = "";
   @override
   void initState() {
-    userName = "Hi ${userInfo!.displayName}";
     super.initState();
   }
 
@@ -37,28 +35,59 @@ class _HomePageState extends State<HomePage> {
     late String long;
     return  Scaffold(
       appBar: AppBar(
-        title: SizedBox(width: 180,
-            child: Text(userName!,style: const TextStyle(fontSize:27,fontStyle:FontStyle.normal),overflow: TextOverflow.fade,)),
-        actions:[
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: GestureDetector(
-              onTap: ()async{
-                await FirebaseAuth.instance.signOut();
-                log("Loo");
-              },
-              child: CircleAvatar(
-                child: SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: Image.asset("assets/image/profileIcon.png")),
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                'Hi, ${user.currentUser?.displayName?.substring(0, 9) ?? 'User'}',
+                style: const TextStyle(fontSize: 18, fontStyle: FontStyle.normal),
+                overflow: TextOverflow.ellipsis,
               ),
-            )
-          )
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                decoration: const InputDecoration(
+                  hintText: 'Search videos',
+                  border: InputBorder.none,
+                ),
+                onChanged: (value) {
+                  // Implement search functionality
+                },
+              ),
+            ),
+
+
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: CircleAvatar(
+              radius: 20,
+              child: ClipOval(
+                child: SizedBox(
+                  height: 20, // CircleAvatar's diameter
+                  width: 20, // CircleAvatar's diameter
+                  child: user.currentUser?.photoURL != null && user.currentUser!.photoURL!.isNotEmpty
+                      ? Image.network(
+                    user.currentUser!.photoURL!,
+                    fit: BoxFit.cover,
+                  )
+                      : Image.asset(
+                    'assets/image/profileIcon.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+            onPressed: () {
+              _showPopupMenu(context);
+            },
+          ),
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.only(top: 15),
+        padding: const EdgeInsets.only(top: 12.5),
         child: VideoList(),
       ),
       floatingActionButton: ElevatedButton(onPressed: (){
@@ -70,10 +99,31 @@ class _HomePageState extends State<HomePage> {
               Navigator.push(context, MaterialPageRoute(
                   builder: (context)=> Record(camera: value,latitude: lat,longitude: long,))));
         });
-      }, child: const Text("Next Page")),
+      }, child: const Icon(Icons.add)),
     );
   }
-
+  void _showPopupMenu(BuildContext context) {
+    showMenu(
+      context: context,
+      position: const RelativeRect.fromLTRB(25.0, 25.0, 0.0, 0.0),
+      items: [
+        const PopupMenuItem<String>(
+          value: 'edit',
+          child: Text('Edit Profile'),
+        ),
+        const PopupMenuItem<String>(
+          value: 'logout',
+          child: Text('Logout'),
+        ),
+      ],
+    ).then((value) {
+      if (value == 'edit') {
+        // Navigate to edit profile page
+      } else if (value == 'logout') {
+        user.signOut();
+      }
+    });
+  }
   Future<Position> _getLocation() async{
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled){
