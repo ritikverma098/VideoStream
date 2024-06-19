@@ -1,15 +1,10 @@
-import 'dart:developer';
-
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:video/record.dart';
-import 'package:video/play.dart';
 import 'package:video/video_grid.dart';
-import 'package:video/widget/textBox.dart';
-
 class HomePage extends StatefulWidget {
 
   const HomePage({super.key});
@@ -19,7 +14,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final TextEditingController _controller = TextEditingController();
   final user = FirebaseAuth.instance;
   final db = FirebaseFirestore.instance.collection("users");
   @override

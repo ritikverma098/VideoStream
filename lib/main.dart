@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video/firebase_options.dart';
-import 'package:video/homePage.dart';
+import 'package:video/home_page.dart';
 import 'package:video/number.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 Future main() async {
