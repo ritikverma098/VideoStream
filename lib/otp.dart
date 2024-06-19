@@ -77,9 +77,11 @@ class OtpVerify extends StatelessWidget {
                       }
                     else
                       {
-                        final  uuid = Uuid();
+                        final uuid = Uuid();
+                        final userName = uuid.v1();
+                        await user.updateDisplayName(userName);
                         final data = <String, dynamic>{
-                          "Name" : uuid.v1(),
+                          "Name" : userName,
                           "creation Time":FieldValue.serverTimestamp(),
                           "userID": user.uid,
                           "phoneNumber": number,
