@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -25,24 +26,31 @@ class MyApp extends StatelessWidget {
       StreamProvider<User?>.value(value:FirebaseAuth.instance.authStateChanges(),
           initialData: null),
     ],
-    child: MaterialApp(
-      title: 'Flutter Demo',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      useMaterial3: true,
+    child: DynamicColorBuilder(builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+      return MaterialApp(
+        title: 'Video Streaming',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: lightDynamic,
+          useMaterial3: true,
 
-      ),
-      home: Consumer<User?>(
-      builder: (context, user, _) {
-      if (user == null){
-      return const NumberReq();
-      }else{
-      return HomePage();
-      }
-      },
+        ),
+        darkTheme: ThemeData(
+          colorScheme: darkDynamic,
+          brightness: Brightness.dark,
+          useMaterial3: true,
+        ),
+        home: Consumer<User?>(
+          builder: (context, user, _) {
+            if (user == null){
+              return const NumberReq();
+            }else{
+              return const HomePage();
+            }
+          },
 
-      ),),
+        ),);
+    },),
     );
   }
 }

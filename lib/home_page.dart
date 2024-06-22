@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:video/record.dart';
+import 'package:video/user_profile.dart';
 import 'package:video/video_grid.dart';
 class HomePage extends StatefulWidget {
 
@@ -98,6 +99,7 @@ class _HomePageState extends State<HomePage> {
   }
   void _showPopupMenu(BuildContext context) {
     showMenu(
+
       context: context,
       position: const RelativeRect.fromLTRB(25.0, 25.0, 0.0, 0.0),
       items: [
@@ -112,9 +114,10 @@ class _HomePageState extends State<HomePage> {
       ],
     ).then((value) {
       if (value == 'edit') {
+        Navigator.push(context, MaterialPageRoute(builder: (context)=> UserProfile()));
         // Navigate to edit profile page
       } else if (value == 'logout') {
-        user.signOut();
+        //user.signOut();
       }
     });
   }

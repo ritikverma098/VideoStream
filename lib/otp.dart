@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,13 +9,74 @@ import 'package:uuid/uuid.dart';
 import 'package:video/home_page.dart';
 import 'package:video/widget/textBox.dart';
 
-class OtpVerify extends StatelessWidget {
+class OtpVerify extends StatefulWidget {
   OtpVerify({super.key, required this.verificationId, required this.number, this.resendToken});
-  final String verificationId;
+  String verificationId;
   final String number;
-  final int ? resendToken;
+  int ? resendToken;
+
+  @override
+  State<OtpVerify> createState() => _OtpVerifyState();
+}
+
+class _OtpVerifyState extends State<OtpVerify> {
   final db = FirebaseFirestore.instance.collection("users");
+
   final TextEditingController controller = TextEditingController();
+  late Timer _timer;
+  int _start = 30;
+  bool _canResend = false;
+  @override
+  void initState() {
+    // TODO: implement initState
+    startTimer();
+    super.initState();
+  }
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    controller.dispose();
+    _timer.cancel();
+    super.dispose();
+  }
+  void startTimer() {
+    _start = 30;
+    _canResend = false;
+    _timer = Timer.periodic(const Duration(seconds: 1), (Timer timer) {
+      if (_start == 0) {
+        setState(() {
+          _canResend = true;
+          timer.cancel();
+        });
+      } else {
+        setState(() {
+          _start--;
+        });
+      }
+    });
+  }
+
+  void resendOtp() {
+    FirebaseAuth.instance.verifyPhoneNumber(
+      phoneNumber: widget.number,
+      verificationCompleted: (PhoneAuthCredential credential) {},
+      verificationFailed: (FirebaseAuthException ex) {
+        log('Failed to resend OTP: ${ex.message}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to resend OTP: ${ex.message}')),
+        );
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        setState(() {
+          widget.verificationId = verificationId;
+          widget.resendToken = resendToken;
+          startTimer();
+        });
+      },
+      forceResendingToken: widget.resendToken,
+      codeAutoRetrievalTimeout: (String verificationId) {},
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,12 +111,15 @@ class OtpVerify extends StatelessWidget {
                 children: [
                   const Text("Did not get otp,"),
                   const SizedBox(width: 7,),
-                  TimerButton.builder(builder: (context,timeLeft){
-                    return const Text("resend?");
-                  }, onPressed: (){
-                    resend(resendToken);
-
-                  }, timeOutInSeconds: 10)
+                  GestureDetector(
+                    onTap: _canResend ? resendOtp : null,
+                    child: Text(
+                      _canResend ? "Resend" : "Resend in $_start seconds",
+                      style: TextStyle(
+                        color: _canResend ? Colors.blue : Colors.grey,
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 15,),
@@ -62,7 +127,7 @@ class OtpVerify extends StatelessWidget {
                 try{
                   PhoneAuthCredential credential = await
                   PhoneAuthProvider.credential(
-                      verificationId: verificationId,
+                      verificationId: widget.verificationId,
                       smsCode: controller.text.toString());
                   FirebaseAuth.instance.signInWithCredential(credential).then((value)async{
                     final auth = FirebaseAuth.instance;
@@ -83,7 +148,7 @@ class OtpVerify extends StatelessWidget {
                           "Name" : userName,
                           "creation Time":FieldValue.serverTimestamp(),
                           "userID": user.uid,
-                          "phoneNumber": number,
+                          "phoneNumber": widget.number,
 
                         };
                         checks.set(data);
@@ -104,17 +169,7 @@ class OtpVerify extends StatelessWidget {
       ),
     );
   }
-  Future<void> resend(int? resendTokens) async {
-    await FirebaseAuth.instance.verifyPhoneNumber(
-        verificationCompleted: (PhoneAuthCredential credential){},
-        verificationFailed: (FirebaseAuthException ex){},
-        codeSent: (String verificationId, int? resendToken){
 
-        },
-        codeAutoRetrievalTimeout: (String verificationID){},
-        phoneNumber: number);
-
-    }
 
 
 }

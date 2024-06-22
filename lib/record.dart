@@ -107,42 +107,45 @@ class _RecordState extends State<Record> {
           ),
         );
       }
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 50,right: 30),
-              child: getFlash(),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: 50),
-              child: Text(
-                '${(remainingTime ~/ 60).toString().padLeft(2, '0')}:${(remainingTime % 60).toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 24, color: Colors.white),
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 50,right: 30),
+                child: getFlash(),
               ),
-            ),
-          ],
-        ),
-        Center(
-          child: SizedBox(
-            height: MediaQuery.of(context).size.height-150,
-            width: 500,
-            child: CameraPreview(controller),
+              Padding(
+                padding: const EdgeInsets.only(top: 50),
+                child: Text(
+                  '${(remainingTime ~/ 60).toString().padLeft(2, '0')}:${(remainingTime % 60).toString().padLeft(2, '0')}',
+                  style: const TextStyle(fontSize: 24, color: Colors.white),
+                ),
+              ),
+            ],
           ),
-        ),
-        Padding(padding: const EdgeInsets.only(top: 6),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            getRecording(),
-            const SizedBox(width: 60,),
-            getLens()
-          ],
-        )),
+          Center(
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height-150,
+              width: 500,
+              child: CameraPreview(controller),
+            ),
+          ),
+          Padding(padding: const EdgeInsets.only(top: 6),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  getRecording(),
+                  const SizedBox(width: 60,),
+                  getLens()
+                ],
+              )),
 
-      ],
+        ],
+      ),
     );
   }
   Widget getFlash()

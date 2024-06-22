@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:video/video_display.dart';
 
 class VideoList extends StatelessWidget {
   final FirebaseFirestore _fireStore = FirebaseFirestore.instance;
@@ -35,7 +36,17 @@ class VideoList extends StatelessWidget {
                 subtitle: Text(video['Detail']),
                 trailing: const Icon(Icons.play_circle_outline, size: 30, color: Colors.redAccent),
                 onTap: () {
-                  // Implement video play functionality
+                  Navigator.push(
+                      context, MaterialPageRoute(builder: (context)=>
+                      VideoDisplay(
+                        title:video['title'],
+                        detail: video['Detail'],
+                        thumbnailUrl:video['thumbnailUrl'],
+                        videoUrl: video['videoUrl'],
+                        uploadTime: (video['Time'] as Timestamp).toDate(),
+                        location: video['Location'],
+                      )
+                  ));
                 },
               );
             },

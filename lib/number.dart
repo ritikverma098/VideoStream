@@ -13,9 +13,34 @@ class NumberReq extends StatefulWidget {
 
 class _NumberReqState extends State<NumberReq> {
   final TextEditingController _controller = TextEditingController();
+  String _selectedCountryCode = '+91';
+  final List<String> _countryCodes = [
+    '+1',    // USA
+    '+91',   // India
+    '+44',   // UK
+    '+61',   // Australia
+    '+81',   // Japan
+    '+49',   // Germany
+    '+33',   // France
+    '+39',   // Italy
+    '+86',   // China
+    '+7',    // Russia
+    '+55',   // Brazil
+    '+27',   // South Africa
+    '+34',   // Spain
+    '+62',   // Indonesia
+    '+52',   // Mexico
+    '+31',   // Netherlands
+    '+47',   // Norway
+    '+46',   // Sweden
+    '+41',   // Switzerland
+    '+90',   // Turkey
+    '+971',  // UAE
+    '+60',   // Malaysia
+    '+65',   // Singapore
+  ];
   @override
   void dispose() {
-    // TODO: implement dispose
     _controller.dispose();
     super.dispose();
   }
@@ -42,20 +67,46 @@ class _NumberReqState extends State<NumberReq> {
               ),
             ),
             const SizedBox(height: 30,),
-            SizedBox(
-              width: 350,
-                child: TextBoxCustom(
-                  inputType: TextInputType.number,
-                  controller: _controller,
-                  hint: "Enter Phone Number",
-                )),
+            Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 10),
+                  child: DropdownButton<String>(
+                    value: _selectedCountryCode,
+                    onChanged: (String? newValue) {
+                      setState(() {
+                        _selectedCountryCode = newValue!;
+                      });
+                    },
+                    items: _countryCodes.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                const SizedBox(width: 10,),
+                SizedBox(
+                  width: 250,
+                    child: TextBoxCustom(
+                      inputType: TextInputType.number,
+                      controller: _controller,
+                      hint: "Enter Phone Number",
+                    )),
+              ],
+            ),
             Padding(
               padding: const EdgeInsets.only(top:19),
               child: ElevatedButton(onPressed: ()async{
-                final String number = "+91${_controller.text}";
+                final String number = "$_selectedCountryCode${_controller.text}";
                 await FirebaseAuth.instance.verifyPhoneNumber(
                     verificationCompleted: (PhoneAuthCredential credential){},
-                    verificationFailed: (FirebaseAuthException ex){},
+                    verificationFailed: (FirebaseAuthException ex){
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Failed to verify phone number: ${ex.message}')),
+                      );
+                    },
                     codeSent: (String verificationId, int? resendToken){
                       Navigator.pushReplacement(context,MaterialPageRoute(
                           builder: (context)=> OtpVerify(
